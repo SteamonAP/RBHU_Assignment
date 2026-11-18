@@ -20,9 +20,12 @@ export const updateShipmentStatusSchema = z.object({
 });
 export const shipmentListQuerySchema = paginationQuerySchema.extend({
   search: z.string().trim().max(200).optional(),
-  status: z
-    .enum(["Pending", "PickedUp", "InTransit", "Delivered", "Cancelled"])
-    .optional(),
+  status: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z
+      .enum(["Pending", "PickedUp", "InTransit", "Delivered", "Cancelled"])
+      .optional(),
+  ),
   customerId: z.string().min(1).optional(),
 });
 export type CreateShipmentDto = z.infer<typeof createShipmentSchema>;

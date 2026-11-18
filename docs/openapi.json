@@ -173,6 +173,8 @@
           {
             "name": "status",
             "in": "query",
+            "allowEmptyValue": true,
+            "description": "Optional status filter. Omit it or pass an empty value to include all statuses.",
             "schema": { "$ref": "#/components/schemas/CustomerStatus" }
           }
         ],
@@ -348,6 +350,8 @@
           {
             "name": "status",
             "in": "query",
+            "allowEmptyValue": true,
+            "description": "Optional status filter. Omit it or pass an empty value to include all statuses.",
             "schema": { "$ref": "#/components/schemas/ShipmentStatus" }
           },
           {

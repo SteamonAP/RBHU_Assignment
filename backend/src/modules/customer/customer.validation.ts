@@ -14,7 +14,10 @@ export const updateCustomerSchema = z.object({
 });
 export const customerListQuerySchema = paginationQuerySchema.extend({
   search: z.string().trim().max(200).optional(),
-  status: z.enum(["Active", "Inactive"]).optional(),
+  status: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.enum(["Active", "Inactive"]).optional(),
+  ),
 });
 export type CreateCustomerDto = z.infer<typeof createCustomerSchema>;
 export type UpdateCustomerDto = z.infer<typeof updateCustomerSchema>;
