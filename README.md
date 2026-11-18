@@ -412,7 +412,6 @@ connect. The SPA subscribes, invalidates its queries and shows a toast. See
 | [docs/AZURE_DEPLOYMENT.md](docs/AZURE_DEPLOYMENT.md) | Proposed Azure target architecture and deployment approach (documentation only) |
 | [docs/SECURITY.md](docs/SECURITY.md) | Auth, hashing, validation, CORS/helmet, rate limiting, secrets, injection safety, hardening checklist |
 | [docs/SETUP_GUIDE.md](docs/SETUP_GUIDE.md) | Step-by-step local setup, troubleshooting table, verification checklist |
-| [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) | Timed 10-15 minute walkthrough script with sample data |
 
 ---
 
