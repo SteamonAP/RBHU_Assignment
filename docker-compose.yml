@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:18
+    container_name: assessment-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+      POSTGRES_DB: assessment_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - assessment-db-data:/var/lib/postgresql
+    networks:
+      - assessment-network
+
+volumes:
+  assessment-db-data:
+
+networks:
+  assessment-network:
+    driver: bridge

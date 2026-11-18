@@ -1,0 +1,1034 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "LogiOps API",
+    "version": "1.0.0",
+    "description": "OpenAPI contract for the LogiOps backend and sales analytics service."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5000",
+      "description": "Backend API"
+    }
+  ],
+  "tags": [
+    { "name": "Health" },
+    { "name": "Authentication" },
+    { "name": "Customers" },
+    { "name": "Shipments" },
+    { "name": "Dashboard" },
+    { "name": "Chat" },
+    { "name": "Analytics" }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["Health"],
+        "operationId": "getServiceHealth",
+        "summary": "Check service liveness",
+        "description": "The backend and analytics service expose a health endpoint at this path, with the response shape determined by the selected server.",
+        "servers": [
+          { "url": "http://localhost:5000", "description": "Backend API" },
+          { "url": "http://localhost:5001", "description": "Analytics service" }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Selected service is running",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "required": ["success", "message", "version"],
+                      "properties": {
+                        "success": { "type": "boolean", "const": true },
+                        "message": { "type": "string" },
+                        "version": { "type": "string" }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": ["success", "message", "data"],
+                      "properties": {
+                        "success": { "type": "boolean", "const": true },
+                        "message": { "type": "string" },
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "status": { "type": "string", "const": "ok" },
+                            "service": { "type": "string", "const": "analytics-service" }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": ["Authentication"],
+        "operationId": "login",
+        "summary": "Authenticate a user",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": { "type": "string", "format": "email" },
+                  "password": { "type": "string", "minLength": 1 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login succeeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/SuccessEnvelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "required": ["user", "accessToken"],
+                          "properties": {
+                            "user": { "$ref": "#/components/schemas/User" },
+                            "accessToken": { "type": "string" }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "422": { "$ref": "#/components/responses/ValidationFailure" }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "tags": ["Authentication"],
+        "operationId": "getCurrentUser",
+        "summary": "Get the authenticated user",
+        "responses": {
+          "200": {
+            "description": "Current user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/SuccessEnvelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "user": { "$ref": "#/components/schemas/User" }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/customers": {
+      "get": {
+        "tags": ["Customers"],
+        "operationId": "listCustomers",
+        "summary": "List active customers",
+        "parameters": [
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/Limit" },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": { "type": "string", "maxLength": 200 },
+            "description": "Case-insensitive match on name, email or company."
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": { "$ref": "#/components/schemas/CustomerStatus" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated customer list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/SuccessEnvelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": { "$ref": "#/components/schemas/Customer" }
+                        },
+                        "meta": { "$ref": "#/components/schemas/PaginationMeta" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "422": { "$ref": "#/components/responses/ValidationFailure" }
+        }
+      },
+      "post": {
+        "tags": ["Customers"],
+        "operationId": "createCustomer",
+        "summary": "Create a customer",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CustomerInput" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Customer created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/SuccessEnvelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/Customer" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "422": { "$ref": "#/components/responses/ValidationFailure" }
+        }
+      }
+    },
+    "/api/v1/customers/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "string" }
+        }
+      ],
+      "get": {
+        "tags": ["Customers"],
+        "operationId": "getCustomer",
+        "summary": "Get a customer",
+        "responses": {
+          "200": {
+            "description": "Customer detail",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/SuccessEnvelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/Customer" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "patch": {
+        "tags": ["Customers"],
+        "operationId": "updateCustomer",
+        "summary": "Partially update a customer",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CustomerUpdate" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Customer updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/SuccessEnvelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/Customer" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "422": { "$ref": "#/components/responses/ValidationFailure" }
+        }
+      },
+      "delete": {
+        "tags": ["Customers"],
+        "operationId": "softDeleteCustomer",
+        "summary": "Soft delete a customer",
+        "responses": {
+          "200": {
+            "description": "Customer soft deleted",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SuccessEnvelope" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/shipments": {
+      "get": {
+        "tags": ["Shipments"],
+        "operationId": "listShipments",
+        "summary": "List shipments",
+        "parameters": [
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/Limit" },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": { "type": "string", "maxLength": 200 },
+            "description": "Case-insensitive match on tracking number, origin or destination."
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": { "$ref": "#/components/schemas/ShipmentStatus" }
+          },
+          {
+            "name": "customerId",
+            "in": "query",
+            "schema": { "type": "string", "minLength": 1 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated shipment list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/SuccessEnvelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": { "$ref": "#/components/schemas/Shipment" }
+                        },
+                        "meta": { "$ref": "#/components/schemas/PaginationMeta" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "422": { "$ref": "#/components/responses/ValidationFailure" }
+        }
+      },
+      "post": {
+        "tags": ["Shipments"],
+        "operationId": "createShipment",
+        "summary": "Create a shipment",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ShipmentInput" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Shipment created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/SuccessEnvelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/Shipment" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "422": { "$ref": "#/components/responses/ValidationFailure" }
+        }
+      }
+    },
+    "/api/v1/shipments/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "string" }
+        }
+      ],
+      "get": {
+        "tags": ["Shipments"],
+        "operationId": "getShipment",
+        "summary": "Get shipment details",
+        "responses": {
+          "200": {
+            "description": "Shipment detail",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/SuccessEnvelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/Shipment" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/shipments/{id}/status": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "string" }
+        }
+      ],
+      "patch": {
+        "tags": ["Shipments"],
+        "operationId": "updateShipmentStatus",
+        "summary": "Update shipment status",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                  "status": { "$ref": "#/components/schemas/ShipmentStatus" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Status updated and event broadcast",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/SuccessEnvelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/Shipment" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "422": { "$ref": "#/components/responses/ValidationFailure" }
+        }
+      }
+    },
+    "/api/v1/dashboard/summary": {
+      "get": {
+        "tags": ["Dashboard"],
+        "operationId": "getDashboardSummary",
+        "summary": "Get current dashboard totals",
+        "responses": {
+          "200": {
+            "description": "Operational counts and shipment distribution",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/SuccessEnvelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/DashboardSummary" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/chat": {
+      "post": {
+        "tags": ["Chat"],
+        "operationId": "sendChatMessage",
+        "summary": "Send a message to the AI assistant",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["message"],
+                "properties": {
+                  "conversationId": {
+                    "type": ["string", "null"],
+                    "default": null
+                  },
+                  "message": { "type": "string", "minLength": 1, "maxLength": 2000 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Assistant response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/SuccessEnvelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "required": ["conversationId", "message"],
+                          "properties": {
+                            "conversationId": { "type": "string" },
+                            "message": { "$ref": "#/components/schemas/ChatMessage" }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "422": { "$ref": "#/components/responses/ValidationFailure" },
+          "503": {
+            "description": "Configured AI provider is unavailable",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chat/conversations": {
+      "get": {
+        "tags": ["Chat"],
+        "operationId": "listChatConversations",
+        "summary": "List the authenticated user's conversations",
+        "responses": {
+          "200": {
+            "description": "Conversation list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/SuccessEnvelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": { "$ref": "#/components/schemas/ChatConversation" }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/chat/{conversationId}/messages": {
+      "parameters": [
+        {
+          "name": "conversationId",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "string" }
+        }
+      ],
+      "get": {
+        "tags": ["Chat"],
+        "operationId": "getChatMessages",
+        "summary": "Get messages in a conversation",
+        "responses": {
+          "200": {
+            "description": "Chronological conversation messages",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/SuccessEnvelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": { "$ref": "#/components/schemas/ChatMessage" }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/analyze": {
+      "post": {
+        "tags": ["Analytics"],
+        "operationId": "analyzeSalesCsv",
+        "summary": "Analyze an uploaded sales CSV",
+        "servers": [
+          {
+            "url": "http://localhost:5001",
+            "description": "Analytics service"
+          }
+        ],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["file"],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "CSV upload; maximum size is configured by MAX_FILE_SIZE_MB (5 MB by default)."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sales statistics and Plotly chart data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/SuccessEnvelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/AnalyticsResult" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/AnalyticsValidationFailure" },
+          "422": { "$ref": "#/components/responses/AnalyticsValidationFailure" },
+          "500": {
+            "description": "Unexpected analytics service error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "parameters": {
+      "Page": {
+        "name": "page",
+        "in": "query",
+        "schema": { "type": "integer", "minimum": 1, "default": 1 }
+      },
+      "Limit": {
+        "name": "limit",
+        "in": "query",
+        "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 10 }
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Authentication required or token invalid",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorEnvelope" }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Resource not found",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorEnvelope" }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "A unique value is already in use",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorEnvelope" }
+          }
+        }
+      },
+      "ValidationFailure": {
+        "description": "Request validation failed",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorEnvelope" }
+          }
+        }
+      },
+      "AnalyticsValidationFailure": {
+        "description": "Upload or CSV data validation failed",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorEnvelope" }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "SuccessEnvelope": {
+        "type": "object",
+        "required": ["success"],
+        "properties": {
+          "success": { "type": "boolean", "const": true },
+          "message": { "type": "string" },
+          "data": {},
+          "meta": { "$ref": "#/components/schemas/PaginationMeta" }
+        }
+      },
+      "ErrorEnvelope": {
+        "type": "object",
+        "required": ["success", "message"],
+        "properties": {
+          "success": { "type": "boolean", "const": false },
+          "message": { "type": "string" },
+          "errors": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/FieldError" }
+          }
+        }
+      },
+      "FieldError": {
+        "type": "object",
+        "required": ["field", "message"],
+        "properties": {
+          "field": { "type": "string" },
+          "message": { "type": "string" }
+        }
+      },
+      "PaginationMeta": {
+        "type": "object",
+        "required": ["page", "limit", "total", "totalPages"],
+        "properties": {
+          "page": { "type": "integer" },
+          "limit": { "type": "integer" },
+          "total": { "type": "integer" },
+          "totalPages": { "type": "integer" }
+        }
+      },
+      "User": {
+        "type": "object",
+        "required": ["id", "name", "email", "role"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "role": { "type": "string", "enum": ["ADMIN", "USER"] },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CustomerStatus": {
+        "type": "string",
+        "enum": ["Active", "Inactive"]
+      },
+      "ShipmentStatus": {
+        "type": "string",
+        "enum": ["Pending", "PickedUp", "InTransit", "Delivered", "Cancelled"]
+      },
+      "CustomerInput": {
+        "type": "object",
+        "required": ["name", "email", "company"],
+        "properties": {
+          "name": { "type": "string", "minLength": 2, "maxLength": 100 },
+          "email": { "type": "string", "format": "email" },
+          "company": { "type": "string", "minLength": 2, "maxLength": 150 },
+          "status": { "$ref": "#/components/schemas/CustomerStatus", "default": "Active" }
+        }
+      },
+      "CustomerUpdate": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "minLength": 2, "maxLength": 100 },
+          "email": { "type": "string", "format": "email" },
+          "company": { "type": "string", "minLength": 2, "maxLength": 150 },
+          "status": { "$ref": "#/components/schemas/CustomerStatus" }
+        }
+      },
+      "Customer": {
+        "allOf": [
+          { "$ref": "#/components/schemas/CustomerInput" },
+          {
+            "type": "object",
+            "required": ["id", "status", "createdAt", "updatedAt", "deletedAt"],
+            "properties": {
+              "id": { "type": "string" },
+              "createdAt": { "type": "string", "format": "date-time" },
+              "updatedAt": { "type": "string", "format": "date-time" },
+              "deletedAt": { "type": ["string", "null"], "format": "date-time" }
+            }
+          }
+        ]
+      },
+      "ShipmentInput": {
+        "type": "object",
+        "required": ["trackingNumber", "customerId", "origin", "destination"],
+        "properties": {
+          "trackingNumber": { "type": "string", "minLength": 3, "maxLength": 50 },
+          "customerId": { "type": "string", "minLength": 1 },
+          "origin": { "type": "string", "minLength": 2, "maxLength": 100 },
+          "destination": { "type": "string", "minLength": 2, "maxLength": 100 },
+          "status": { "$ref": "#/components/schemas/ShipmentStatus", "default": "Pending" }
+        }
+      },
+      "Shipment": {
+        "allOf": [
+          { "$ref": "#/components/schemas/ShipmentInput" },
+          {
+            "type": "object",
+            "required": ["id", "status", "createdAt", "updatedAt", "customer"],
+            "properties": {
+              "id": { "type": "string" },
+              "createdAt": { "type": "string", "format": "date-time" },
+              "updatedAt": { "type": "string", "format": "date-time" },
+              "customer": {
+                "type": "object",
+                "required": ["id", "name"],
+                "properties": {
+                  "id": { "type": "string" },
+                  "name": { "type": "string" },
+                  "email": { "type": "string", "format": "email" },
+                  "company": { "type": "string" }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "DashboardSummary": {
+        "type": "object",
+        "required": ["totalCustomers", "totalShipments", "shipmentStatusDistribution"],
+        "properties": {
+          "totalCustomers": { "type": "integer", "minimum": 0 },
+          "totalShipments": { "type": "integer", "minimum": 0 },
+          "shipmentStatusDistribution": {
+            "type": "object",
+            "required": ["Pending", "PickedUp", "InTransit", "Delivered", "Cancelled"],
+            "properties": {
+              "Pending": { "type": "integer", "minimum": 0 },
+              "PickedUp": { "type": "integer", "minimum": 0 },
+              "InTransit": { "type": "integer", "minimum": 0 },
+              "Delivered": { "type": "integer", "minimum": 0 },
+              "Cancelled": { "type": "integer", "minimum": 0 }
+            }
+          }
+        }
+      },
+      "ChatMessage": {
+        "type": "object",
+        "required": ["id", "conversationId", "role", "content", "createdAt"],
+        "properties": {
+          "id": { "type": "string" },
+          "conversationId": { "type": "string" },
+          "role": { "type": "string", "enum": ["user", "assistant"] },
+          "content": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ChatConversation": {
+        "type": "object",
+        "required": ["id", "userId", "title", "createdAt", "updatedAt"],
+        "properties": {
+          "id": { "type": "string" },
+          "userId": { "type": "string" },
+          "title": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" },
+          "_count": {
+            "type": "object",
+            "properties": { "messages": { "type": "integer" } }
+          }
+        }
+      },
+      "AnalyticsResult": {
+        "type": "object",
+        "required": ["summary", "revenueByRegion", "topSalespeople", "charts"],
+        "properties": {
+          "summary": {
+            "type": "object",
+            "required": [
+              "totalRevenue",
+              "averageRevenue",
+              "highestSale",
+              "lowestSale",
+              "totalRecords",
+              "uniqueSalespeople",
+              "uniqueRegions"
+            ],
+            "properties": {
+              "totalRevenue": { "type": "number" },
+              "averageRevenue": { "type": "number" },
+              "highestSale": { "type": "number" },
+              "lowestSale": { "type": "number" },
+              "totalRecords": { "type": "integer" },
+              "uniqueSalespeople": { "type": "integer" },
+              "uniqueRegions": { "type": "integer" }
+            }
+          },
+          "revenueByRegion": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["region", "totalRevenue"],
+              "properties": {
+                "region": { "type": "string" },
+                "totalRevenue": { "type": "number" }
+              }
+            }
+          },
+          "topSalespeople": {
+            "type": "array",
+            "maxItems": 5,
+            "items": {
+              "type": "object",
+              "required": ["salesperson", "totalRevenue"],
+              "properties": {
+                "salesperson": { "type": "string" },
+                "totalRevenue": { "type": "number" }
+              }
+            }
+          },
+          "charts": {
+            "type": "object",
+            "properties": {
+              "revenueByRegion": { "type": "object" },
+              "topSalespeople": { "type": "object" }
+            }
+          }
+        }
+      }
+    }
+  },
+  "security": [{ "BearerAuth": [] }]
+}

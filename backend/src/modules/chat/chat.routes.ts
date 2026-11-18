@@ -1,0 +1,11 @@
+import { Router } from 'express';
+import { chatController } from './chat.controller';
+import { validate } from '../../middleware/validate.middleware';
+import { authenticate } from '../../middleware/auth.middleware';
+import { sendMessageSchema } from './chat.validation';
+const router = Router();
+router.use(authenticate);
+router.get('/conversations', chatController.getConversations);
+router.post('/', validate(sendMessageSchema), chatController.sendMessage);
+router.get('/:conversationId/messages', chatController.getMessages);
+export default router;

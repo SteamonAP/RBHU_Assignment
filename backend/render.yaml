@@ -1,0 +1,30 @@
+# Render.com blueprint for the LogiOps backend API.
+# The assessment targets Azure (see docs/AZURE_DEPLOYMENT.md); this file is a
+# convenience alternative for free-tier hosting of the Node.js API.
+services:
+  - type: web
+    name: logiops-backend
+    env: node
+    plan: free
+    buildCommand: npm ci && npx prisma generate && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false # set in the Render dashboard (PostgreSQL connection string)
+      - key: JWT_SECRET
+        sync: false # set in the Render dashboard
+      - key: JWT_EXPIRE
+        value: 15m
+      - key: CORS_ORIGIN
+        sync: false # set in the Render dashboard (frontend origin)
+      - key: AI_PROVIDER
+        value: mock
+      - key: OLLAMA_BASE_URL
+        sync: false
+      - key: OLLAMA_MODEL
+        sync: false
